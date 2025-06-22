@@ -234,20 +234,26 @@ object USSDController : USSDInterface, USSDApi {
     }
 
     private fun isAccessibilityServicesEnable(context: Context): Boolean {
-        (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager)?.apply {
-            installedAccessibilityServiceList.forEach { service ->
-                if (service.id.contains(context.packageName) &&
-                        Settings.Secure.getInt(context.applicationContext.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED) == 1){
-                    Settings.Secure.getString(context.applicationContext.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)?.let {
-                        if (it.split(':').contains(service.id)) return true
-                    }
-                }else if(service.id.contains(context.packageName) && Settings.Secure.getString(context.applicationContext.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).toString().contains(service.id)){
-                    return true;
-                }
-
-
+    (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager)?.apply {
+        installedAccessibilityServiceList.forEach { service ->
+            val enabledServices = Settings.Secure.getString(
+                context.applicationContext.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (service.id.contains(context.packageName) &&
+                Settings.Secure.getInt(
+                    context.applicationContext.contentResolver,
+                    Settings.Secure.ACCESSIBILITY_ENABLED
+                ) == 1
+            ) {
+                if (enabledServices != null && enabledServices.split(':').contains(service.id)) return true
+            } else if (service.id.contains(context.packageName) &&
+                enabledServices != null && enabledServices.contains(service.id)
+            ) {
+                return true
             }
         }
-        return false
     }
+    return false
+}
 }

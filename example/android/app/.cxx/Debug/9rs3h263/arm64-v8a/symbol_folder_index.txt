@@ -1,0 +1,1 @@
+/Users/leonardoalainmoreirarodriguez/Proyectos/flutter/ussd_advanced/example/build/app/intermediates/cxx/Debug/9rs3h263/obj/arm64-v8a

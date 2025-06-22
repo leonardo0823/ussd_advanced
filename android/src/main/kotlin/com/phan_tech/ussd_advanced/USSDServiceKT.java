@@ -14,12 +14,8 @@ import android.os.Bundle;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import androidx.annotation.RequiresApi;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import io.flutter.Log;
 
 
 /**
@@ -51,10 +47,7 @@ public class USSDServiceKT extends AccessibilityService {
         }
         String response = null;
         if(!event.getText().isEmpty()) {
-            List<CharSequence> res = event.getText();
-            res.remove("SEND");
-            res.remove("CANCEL");
-            response = String.join("\n", res );
+            response = event.getText().get(0).toString();
         }
         if (LoginView(event) && notInputText(event)) {
             // first view or logView, do nothing, pass / FIRST MESSAGE
@@ -191,12 +184,11 @@ public class USSDServiceKT extends AccessibilityService {
     protected static void clickOnButton(AccessibilityEvent event, int index) {
         int count = -1;
         for (AccessibilityNodeInfo leaf : getLeaves(event)) {
-            count++;
-            if (count == index) {
-                leaf.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-            }
             if (leaf.getClassName().toString().toLowerCase().contains("button")) {
-
+                count++;
+                if (count == index) {
+                    leaf.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                }
             }
         }
     }

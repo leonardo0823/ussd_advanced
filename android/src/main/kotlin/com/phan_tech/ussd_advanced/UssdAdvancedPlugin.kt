@@ -8,24 +8,20 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.telecom.TelecomManager
 import android.telephony.TelephonyManager
 import android.telephony.TelephonyManager.UssdResponseCallback
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityManager
 import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.BasicMessageChannel
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.*
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.StringCodec
 import java.util.concurrent.CompletableFuture
 
 
@@ -119,18 +115,9 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
     }
 
     when (call.method) {
-      "hasPermissions" -> {
-        result.success(hasPermissions())
-
-      }
-      "requestPermissions" -> {
-          requestPermissions()
-        result.success(null)
-
-      }
       "sendUssd" -> {
-        result.success(defaultUssdService(code!!, subscriptionId))
-
+        defaultUssdService(code!!, subscriptionId)
+        result.success(null)
       }
       "sendAdvancedUssd" -> {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
@@ -152,24 +139,27 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
             result.success(res);
           }
         }else{
-          result.success(defaultUssdService(code!!, subscriptionId))
+          defaultUssdService(code!!, subscriptionId)
+          result.success(null)
         }
       }
       "multisessionUssd" -> {
 
         // check permissions
-        if(
-          !hasPermissions()
-        ){
-          requestPermissions()
-          result.success(null)
-
-
+        if (ContextCompat.checkSelfPermission(context!!, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+          if (!ActivityCompat.shouldShowRequestPermissionRationale(activity!!, android.Manifest.permission.CALL_PHONE)) {
+            ActivityCompat.requestPermissions(activity!!, arrayOf(android.Manifest.permission.CALL_PHONE), 2)
+          }
+        }else if (ContextCompat.checkSelfPermission(this.context!!, android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+          if (!ActivityCompat.shouldShowRequestPermissionRationale(activity!!, android.Manifest.permission.READ_PHONE_STATE)) {
+            ActivityCompat.requestPermissions(activity!!, arrayOf(android.Manifest.permission.READ_PHONE_STATE), 2)
+          }
         }else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
           multisessionUssd(code!!, subscriptionId, result)
 
         }else{
-          result.success(defaultUssdService(code!!, subscriptionId))
+          defaultUssdService(code!!, subscriptionId)
+          result.success(null)
         }
 
       }
@@ -181,36 +171,6 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
       }
     }
   }
-
-    private fun hasPermissions() : Boolean{
-        return !(
-                ContextCompat.checkSelfPermission(context!!, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this.context!!, android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED ||
-                !isAccessibilityServiceEnabled(this.context!!)
-                )
-    }
-
-    private fun requestPermissions(){
-        if(!isAccessibilityServiceEnabled(this.context!!)) {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            this.context!!.startActivity(intent)
-
-        }
-
-        if (ContextCompat.checkSelfPermission(context!!, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            if (!ActivityCompat.shouldShowRequestPermissionRationale(activity!!, android.Manifest.permission.CALL_PHONE)) {
-                ActivityCompat.requestPermissions(activity!!, arrayOf(android.Manifest.permission.CALL_PHONE), 2)
-            }
-        }
-
-        if (ContextCompat.checkSelfPermission(this.context!!, android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            if (!ActivityCompat.shouldShowRequestPermissionRationale(activity!!, android.Manifest.permission.READ_PHONE_STATE)) {
-                ActivityCompat.requestPermissions(activity!!, arrayOf(android.Manifest.permission.READ_PHONE_STATE), 2)
-            }
-        }
-
-    }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
@@ -318,8 +278,7 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
 
         try {
           if(ev.text.isNotEmpty()) {
-            result.success(java.lang.String.join("\n", ev.text))
-//            result.success(ev.text.first().toString())
+            result.success(ev.text.first().toString())
           }else{
             result.success(null)
           }
@@ -328,9 +287,9 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
 
       override fun over(message: String) {
         try {
+          basicMessageChannel.setMessageHandler(null)
           basicMessageChannel.send(message)
           result.success(message)
-          basicMessageChannel.setMessageHandler(null)
         }catch (e: Exception){}
 
       }
@@ -339,8 +298,8 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
 
   private fun multisessionUssdCancel(){
     if(event != null){
-      ussdApi.cancel2(event!!);
       basicMessageChannel.setMessageHandler(null)
+      ussdApi.cancel2(event!!);
     }
   }
 
@@ -417,23 +376,6 @@ class UssdAdvancedPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Basic
     } catch (e: Exception) {
       throw e
     }
-  }
-
-  private fun isAccessibilityServiceEnabled(context: Context): Boolean{
-    var accessibilityEnabled: Boolean
-    accessibilityEnabled = false
-    val service = "com.phan_tech.ussd_advanced.USSDServiceKT"
-    val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-    val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityEvent.TYPES_ALL_MASK)
-    for (enabledService in enabledServices) {
-      val id = enabledService.id
-      if (id.contains(service)) {
-        accessibilityEnabled = true
-        break
-      }
-    }
-    return accessibilityEnabled
-
   }
 
   private fun isTelephonyEnabled(): Boolean {
