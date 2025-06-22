@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:ussd_advanced/ussd_advanced.dart';
 
@@ -59,11 +60,13 @@ class _MyAppState extends State<MyApp> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      UssdAdvanced.sendUssd(
-                        code: _controller.text,
-                        subscriptionId: 1,
-                      );
+                    onPressed: () async {
+                      if (await Permission.phone.request().isGranted) {
+                        UssdAdvanced.sendUssd(
+                          code: _controller.text,
+                          subscriptionId: 1,
+                        );
+                      }
                     },
                     child: const Text('norma\nrequest'),
                   ),
@@ -71,13 +74,15 @@ class _MyAppState extends State<MyApp> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      String? res = await UssdAdvanced.sendAdvancedUssd(
-                        code: _controller.text,
-                        subscriptionId: 1,
-                      );
-                      setState(() {
-                        _response = res;
-                      });
+                      if (await Permission.phone.request().isGranted) {
+                        String? res = await UssdAdvanced.sendAdvancedUssd(
+                          code: _controller.text,
+                          subscriptionId: 1,
+                        );
+                        setState(() {
+                          _response = res;
+                        });
+                      }
                     },
                     child: const Text('single session\nrequest'),
                   ),
@@ -85,18 +90,20 @@ class _MyAppState extends State<MyApp> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      String? res = await UssdAdvanced.multisessionUssd(
-                        code: _controller.text,
-                        subscriptionId: 1,
-                      );
-                      setState(() {
-                        _response = res;
-                      });
-                      String? res2 = await UssdAdvanced.sendMessage('0');
-                      setState(() {
-                        _response = res2;
-                      });
-                      await UssdAdvanced.cancelSession();
+                      if (await Permission.phone.request().isGranted) {
+                        String? res = await UssdAdvanced.multisessionUssd(
+                          code: _controller.text,
+                          subscriptionId: 1,
+                        );
+                        setState(() {
+                          _response = res;
+                        });
+                        String? res2 = await UssdAdvanced.sendMessage('0');
+                        setState(() {
+                          _response = res2;
+                        });
+                        await UssdAdvanced.cancelSession();
+                      }
                     },
                     child: const Text('multi session\nrequest'),
                   ),
